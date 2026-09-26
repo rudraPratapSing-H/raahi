@@ -1,0 +1,19 @@
+{
+  "name": "mobileapp",
+  "version": "1.0.0",
+  "description": "Navigation App",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "dependencies": {
+    "react-native-tts": "^4.1.0",
+    "@google/genai": "*"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.2.2",
+    "@types/jest": "^29.5.4"
+  }
+}
