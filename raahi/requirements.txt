@@ -1,6 +1,0 @@
-google-genai
-pymongo
-python-dotenv
-tenacity
-fastapi
-uvicorn

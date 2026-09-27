@@ -1,10 +1,13 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
 from pydantic import BaseModel
 from typing import Optional
 import os
 import io
+import json
+import itertools
 import base64
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -33,6 +36,22 @@ if not MONGO_URI:
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_API_KEY2 = os.getenv("GEMINI_API_KEY2")
 GEMINI_API_KEY3 = os.getenv("GEMINI_API_KEY3")
+
+# Demo-day rate-limit mitigation: cycle /api/vision/find calls across every
+# configured key so a free-tier per-key quota is spread across all of them.
+# This only helps if the quota is enforced per-key rather than per-account -
+# verify that before relying on it live. Each call below builds its own
+# genai_new.Client(api_key=...) (not the global genai.configure() the older
+# /api/vision/detect endpoint uses), so rotating keys here never mutates that
+# endpoint's configured key.
+GEMINI_VISION_KEYS = [k for k in (GEMINI_API_KEY, GEMINI_API_KEY2, GEMINI_API_KEY3) if k]
+_vision_key_cycle = itertools.cycle(GEMINI_VISION_KEYS) if GEMINI_VISION_KEYS else None
+
+
+def next_vision_key():
+    if not _vision_key_cycle:
+        raise HTTPException(status_code=500, detail="No Gemini API key configured")
+    return next(_vision_key_cycle)
 
 client = MongoClient(MONGO_URI)
 db = client["navigation"]
@@ -255,6 +274,63 @@ async def vision_score(payload: ScoreRequest):
     }
 
 
+# ─────────────────────────────────────────────
+# POST /api/vision/find — camera-driven "find X" (new, separate from /api/vision/detect)
+# ─────────────────────────────────────────────
+class FindRequest(BaseModel):
+    image_base64: str
+    target: str
+    lang: str = "en"
+
+@app.post("/api/vision/find")
+async def vision_find(payload: FindRequest):
+    try:
+        image_data = base64.b64decode(payload.image_base64)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image data: {e}")
+
+    # Single-purpose, stateless prompt: one frame, one target, one small
+    # structured answer. No multi-step reasoning is asked of the model - a
+    # fast/free-tier model is reliable at this, not at open-ended reasoning.
+    prompt = (
+        f"Look at this single image. The user is searching for: '{payload.target}'. "
+        "Look for the object/place itself OR any sign/label pointing to it. "
+        f"Respond in {payload.lang}. Respond with ONLY a compact JSON object, no other text, no markdown fences: "
+        '{"visible": true or false, '
+        '"direction": one of "left", "slightly_left", "ahead", "slightly_right", "right", "behind", "unknown", '
+        '"distance_hint": one of "near", "far", or null, '
+        '"note": "<max 8 words, e.g. what a sign said>"}'
+    )
+
+    try:
+        find_client = genai_new.Client(api_key=next_vision_key())
+        img_part = types.Part.from_bytes(data=image_data, mime_type="image/jpeg")
+        response = find_client.models.generate_content(
+            model='gemini-3.5-flash-lite',
+            contents=[prompt, img_part],
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+        raw = response.text.strip().strip('`')
+        if raw.lower().startswith('json'):
+            raw = raw[4:].strip()
+        parsed = json.loads(raw)
+    except Exception as e:
+        # A fast/free-tier model will occasionally wrap JSON in prose or emit
+        # something unparseable - fall back to a well-formed "not found"
+        # response rather than a 500, so the client always has something safe
+        # to speak.
+        print(f"[DEBUG vision/find error]: {e}")
+        parsed = {"visible": False, "direction": "unknown", "distance_hint": None, "note": ""}
+
+    return {
+        "status": "ok",
+        "visible": bool(parsed.get("visible", False)),
+        "direction": parsed.get("direction") or "unknown",
+        "distance_hint": parsed.get("distance_hint"),
+        "note": parsed.get("note", ""),
+    }
+
+
 def cosine_similarity(v1, v2):
     dot_product = sum(a * b for a, b in zip(v1, v2))
     mag1 = math.sqrt(sum(a * a for a in v1))
@@ -398,6 +474,14 @@ def get_path(start: str, end: str, blocked_edges: str = ""):
         "status": "ok",
         "steps": steps
     }
+
+# ─────────────────────────────────────────────
+# Static wearable/voice web app — mounted at /wearable (not "/") so it never
+# shadows any /api/* route above, and doesn't touch how the Next.js web-app/
+# (served separately by `next dev`/`next start`) reaches the root path.
+# StaticFiles(html=True) serves wearable-app/index.html for "/wearable".
+# ─────────────────────────────────────────────
+app.mount("/wearable", StaticFiles(directory="wearable-app", html=True), name="wearable")
 
 if __name__ == "__main__":
     import uvicorn

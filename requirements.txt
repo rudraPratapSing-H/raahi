@@ -1,4 +1,7 @@
 google-genai
+google-generativeai
+pillow
+python-multipart
 pymongo
 python-dotenv
 tenacity

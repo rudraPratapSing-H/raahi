@@ -30,6 +30,9 @@ export default function Home() {
           >
             Graph
           </button>
+          <a className="nav-btn" href="/wearable" target="_blank" rel="noopener noreferrer">
+            Wearable
+          </a>
         </div>
       </header>
       <section className="content-section">

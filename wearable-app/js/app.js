@@ -286,11 +286,10 @@ async function main() {
   await i18n.init();
   populateLangSelect();
   log.init($('eventLog'));
-  
+  showSampleReadout();
+
   // Initialize camera immediately so the user can see the feed
   camera.init().catch(e => console.error("Camera init failed:", e));
-
-  showSampleReadout();
 
   if (voiceCommands.isSupported()) {
     voiceCommands.start(ctx);
