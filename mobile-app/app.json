@@ -14,10 +14,13 @@
         "NSMicrophoneUsageDescription": "Raahi listens for spoken commands like \"find canteen\" or \"repeat\".",
         "NSSpeechRecognitionUsageDescription": "Raahi converts your spoken commands into text to control the app hands-free.",
         "NSLocationWhenInUseUsageDescription": "Raahi uses your location to guide you outdoors and to share your position if you trigger SOS.",
-        "UIBackgroundModes": ["bluetooth-central"]
+        "UIBackgroundModes": [
+          "bluetooth-central"
+        ]
       }
     },
     "android": {
+      "package": "com.blinddeveloper.raahi",
       "adaptiveIcon": {
         "backgroundColor": "#0b0f14",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -25,7 +28,16 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.SEND_SMS"]
+      "permissions": [
+        "android.permission.SEND_SMS",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -49,7 +61,9 @@
         {
           "microphonePermission": "Raahi listens for spoken commands like \"find canteen\" or \"repeat\".",
           "speechRecognitionPermission": "Raahi converts your spoken commands into text to control the app hands-free.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
       ],
       [
@@ -62,6 +76,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "11b991a2-f15d-4152-923e-c79ecf0e0548"
+      }
+    },
+    "owner": "blinddeveloper"
   }
 }

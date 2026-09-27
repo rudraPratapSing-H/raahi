@@ -6,6 +6,7 @@
 // voiceQueue.ts and voiceCommands.ts barely change from their web version.
 
 import * as Speech from 'expo-speech';
+import { Platform } from 'react-native';
 import { ExpoSpeechRecognitionModule, type ExpoSpeechRecognitionErrorEvent } from 'expo-speech-recognition';
 
 export interface SynthesizeHandlers {
@@ -21,10 +22,11 @@ export interface RecognizeHandlers {
 
 export const speechProvider = {
   isRecognitionSupported(): boolean {
-    return true; // expo-speech-recognition supports both iOS and Android
+    return Platform.OS !== 'web' && !!ExpoSpeechRecognitionModule?.addListener;
   },
 
   async requestRecognitionPermission(): Promise<boolean> {
+    if (Platform.OS === 'web' || !ExpoSpeechRecognitionModule?.requestPermissionsAsync) return false;
     try {
       const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       return !!result.granted;
@@ -53,6 +55,9 @@ export const speechProvider = {
    * a pause by design, same as the browser's did).
    */
   recognize(lang: string, handlers: RecognizeHandlers) {
+    if (Platform.OS === 'web' || !ExpoSpeechRecognitionModule?.addListener) {
+      return { stop() {} };
+    }
     const resultSub = ExpoSpeechRecognitionModule.addListener('result', (event) => {
       const transcript = event.results?.[0]?.transcript ?? '';
       handlers.onResult?.(transcript, !!event.isFinal);

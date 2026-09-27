@@ -26,14 +26,14 @@ export interface BleCallbacks {
   onDisconnected: () => void;
 }
 
-const manager = new BleManager();
+const manager = Platform.OS !== 'web' ? new BleManager() : null;
 
 let device: Device | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let activeCallbacks: BleCallbacks | null = null;
 
 export function isSupported(): boolean {
-  return true; // native BLE is always present on a real phone build
+  return Platform.OS !== 'web';
 }
 
 export function isConnected(): boolean {
@@ -71,6 +71,11 @@ function handleDisconnected() {
 
 export async function connect(callbacks: BleCallbacks): Promise<void> {
   activeCallbacks = callbacks;
+
+  if (!manager) {
+    callbacks.onStatusChange('off', 'Bluetooth not available on web');
+    return;
+  }
 
   const permitted = await requestBlePermissions();
   if (!permitted) {
@@ -128,7 +133,7 @@ export async function connect(callbacks: BleCallbacks): Promise<void> {
 }
 
 export function disconnect(): void {
-  manager.stopDeviceScan();
+  manager?.stopDeviceScan();
   if (device) {
     device.cancelConnection().catch(() => {});
   } else {
