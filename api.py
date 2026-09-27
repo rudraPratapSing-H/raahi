@@ -38,30 +38,24 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_API_KEY2 = os.getenv("GEMINI_API_KEY2")
 GEMINI_API_KEY3 = os.getenv("GEMINI_API_KEY3")
 
-# Demo-day rate-limit mitigation: cycle /api/vision/find calls across every
-# configured key so a free-tier per-key quota is spread across all of them.
-# This only helps if the quota is enforced per-key rather than per-account -
-# verify that before relying on it live. Each call below builds its own
-# genai_new.Client(api_key=...) (not the global genai.configure() the older
-# /api/vision/detect endpoint uses), so rotating keys here never mutates that
-# endpoint's configured key.
-GEMINI_VISION_KEYS = [k for k in (GEMINI_API_KEY, GEMINI_API_KEY2, GEMINI_API_KEY3) if k]
-_vision_key_cycle = itertools.cycle(GEMINI_VISION_KEYS) if GEMINI_VISION_KEYS else None
+# Every Gemini-calling endpoint below draws from this shared pool instead of
+# a fixed dedicated key, round-robin. This is what keeps the app working if
+# any single key gets rate-limited, quota-exhausted, or blocked (e.g. Google
+# flagging one as leaked) - the other configured keys keep serving requests
+# instead of that one endpoint hard-failing.
+GEMINI_KEYS = [k for k in (GEMINI_API_KEY, GEMINI_API_KEY2, GEMINI_API_KEY3) if k]
+_gemini_key_cycle = itertools.cycle(GEMINI_KEYS) if GEMINI_KEYS else None
 
 
-def next_vision_key():
-    if not _vision_key_cycle:
+def next_gemini_key():
+    if not _gemini_key_cycle:
         raise HTTPException(status_code=500, detail="No Gemini API key configured")
-    return next(_vision_key_cycle)
+    return next(_gemini_key_cycle)
 
 client = MongoClient(MONGO_URI)
 db = client["navigation"]
 nodes_collection = db["topological_graph_nodes"]
 edges_collection = db["topological_graph_edges"]
-
-# Configure Gemini for the vision hazard endpoint
-if GEMINI_API_KEY2:
-    genai.configure(api_key=GEMINI_API_KEY2)
 
 # ─────────────────────────────────────────────
 # GET /api/graph — existing endpoint
@@ -95,13 +89,13 @@ async def add_node(
     Accepts multiple images + metadata, extracts Gemini embeddings for each,
     averages them, and inserts the node into MongoDB.
     """
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured on server")
+    if not GEMINI_KEYS:
+        raise HTTPException(status_code=500, detail="No Gemini API key configured on server")
 
     if not images or len(images) == 0:
         raise HTTPException(status_code=400, detail="At least one image is required")
 
-    embed_client = genai_new.Client(api_key=GEMINI_API_KEY)
+    embed_client = genai_new.Client(api_key=next_gemini_key())
     all_vectors = []
 
     try:
@@ -202,8 +196,8 @@ class DetectRequest(BaseModel):
 
 @app.post("/api/vision/detect")
 async def vision_detect(payload: DetectRequest):
-    if not GEMINI_API_KEY2:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY2 not configured on server")
+    if not GEMINI_KEYS:
+        raise HTTPException(status_code=500, detail="No Gemini API key configured on server")
 
     # Decode base64 image
     try:
@@ -212,7 +206,7 @@ async def vision_detect(payload: DetectRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid image data: {e}")
 
-    # 1. Vision prompt (Uses GEMINI_API_KEY2 via global configure)
+    # 1. Vision prompt
     prompt_vision = (
         "You are a mobility instructor for a visually impaired person. "
         "Scan this image for physical hazards (furniture, people, steps, poles, etc.). "
@@ -223,6 +217,12 @@ async def vision_detect(payload: DetectRequest):
     )
 
     try:
+        # google.generativeai's GenerativeModel reads whatever key was last
+        # passed to genai.configure() - there's no per-call api_key param, so
+        # rotation here means reconfiguring the module-level client right
+        # before use rather than building a fresh client like the other
+        # endpoints do with genai_new.Client(api_key=...).
+        genai.configure(api_key=next_gemini_key())
         model = genai.GenerativeModel('gemini-3.5-flash-lite')
         response = model.generate_content([prompt_vision, img])
         hazard_text = response.text.strip()
@@ -244,12 +244,12 @@ class ScoreRequest(BaseModel):
 
 @app.post("/api/vision/score")
 async def vision_score(payload: ScoreRequest):
-    if not GEMINI_API_KEY3:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY3 not configured on server")
+    if not GEMINI_KEYS:
+        raise HTTPException(status_code=500, detail="No Gemini API key configured on server")
 
     hazard_text = payload.hazard_text
 
-    # 2. Text scoring prompt (Uses GEMINI_API_KEY3 explicitly)
+    # 2. Text scoring prompt
     prompt_score = (
         f"Given the following hazard description for a blind pedestrian: '{hazard_text}'\n"
         "Score the severity from 1 to 5. 1 = safe/clear, 2 = distant object, 3 = moderate hazard within 5 steps, 4 = severe hazard within 2-3 steps, 5 = extreme immediate collision danger (1 step away).\n"
@@ -257,7 +257,7 @@ async def vision_score(payload: ScoreRequest):
     )
 
     try:
-        client3 = genai_new.Client(api_key=GEMINI_API_KEY3)
+        client3 = genai_new.Client(api_key=next_gemini_key())
         response_score = client3.models.generate_content(
             model='gemini-3.5-flash-lite',
             contents=prompt_score
@@ -304,7 +304,7 @@ async def vision_find(payload: FindRequest):
     )
 
     try:
-        find_client = genai_new.Client(api_key=next_vision_key())
+        find_client = genai_new.Client(api_key=next_gemini_key())
         img_part = types.Part.from_bytes(data=image_data, mime_type="image/jpeg")
         response = find_client.models.generate_content(
             model='gemini-3.5-flash-lite',
@@ -349,8 +349,8 @@ async def localize(payload: LocalizeRequest):
     Accepts a base64 image, extracts Gemini embedding, and compares 
     with all known nodes. If max similarity > 0.85, returns a match.
     """
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+    if not GEMINI_KEYS:
+        raise HTTPException(status_code=500, detail="No Gemini API key configured")
 
     try:
         image_data = base64.b64decode(payload.image_base64)
@@ -359,7 +359,7 @@ async def localize(payload: LocalizeRequest):
 
     # Extract embedding
     try:
-        embed_client = genai_new.Client(api_key=GEMINI_API_KEY)
+        embed_client = genai_new.Client(api_key=next_gemini_key())
         part = types.Part.from_bytes(data=image_data, mime_type="image/jpeg")
         response = embed_client.models.embed_content(
             model='gemini-embedding-2',
