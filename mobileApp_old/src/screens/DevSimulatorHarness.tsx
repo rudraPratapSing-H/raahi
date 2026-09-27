@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
 import { useNavigationThread } from '../hooks/useNavigationThread';
 import { MOCK_FRAME_NODE_1, MOCK_FRAME_NODE_2, MOCK_FRAME_OFF_PATH } from '../data/mockFrames';
-
-const API_KEY = "AIzaSyBy_QgNUMkRP_Wd6ViSVtahiBI6Z04tgis"; 
+// Use an environment variable instead of hardcoding to prevent security warnings
+const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "YOUR_API_KEY_HERE"; 
 
 export default function DevSimulatorHarness() {
   const { currentNodeId, processFrameForNavigation } = useNavigationThread(API_KEY);

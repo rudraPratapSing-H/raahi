@@ -7,6 +7,15 @@ from mongo_upload import upload_graph_to_mongo
 def main():
     load_dotenv()
     api_key = os.getenv("GEMINI_API_KEY")
+    api_key2 = os.getenv("GEMINI_API_KEY2")
+    api_key3 = os.getenv("GEMINI_API_KEY3")
+    
+    print("--- Loaded API Keys ---")
+    print(f"GEMINI_API_KEY: {api_key}")
+    print(f"GEMINI_API_KEY2: {api_key2}")
+    print(f"GEMINI_API_KEY3: {api_key3}")
+    print("-----------------------")
+    
     mongo_uri = os.getenv("MONGO_URI")
     
     # 1. Path where your images are saved
