@@ -8,10 +8,10 @@ from typing import Optional
 import os
 import io
 import json
+import asyncio
 import itertools
 import base64
 from dotenv import load_dotenv
-import google.generativeai as genai
 from google import genai as genai_new
 from google.genai import types
 import math
@@ -104,7 +104,13 @@ async def add_node(
             mime_type = image.content_type or "image/jpeg"
             
             part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-            response = embed_client.models.embed_content(
+            # The SDK call itself is blocking network I/O - run it off the
+            # event loop so one slow Gemini round-trip doesn't stall every
+            # other request the server is handling (see next_gemini_key()'s
+            # docstring-equivalent comment above for why this matters more
+            # now that concurrent requests are common).
+            response = await asyncio.to_thread(
+                embed_client.models.embed_content,
                 model='gemini-embedding-2',
                 contents=part,
                 config=types.EmbedContentConfig(
@@ -199,10 +205,11 @@ async def vision_detect(payload: DetectRequest):
     if not GEMINI_KEYS:
         raise HTTPException(status_code=500, detail="No Gemini API key configured on server")
 
-    # Decode base64 image
+    # Decode base64 image (Image.open here is just early validation that the
+    # bytes are a real image, before spending a Gemini call on garbage input)
     try:
         image_data = base64.b64decode(payload.image_base64)
-        img = Image.open(io.BytesIO(image_data))
+        Image.open(io.BytesIO(image_data))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid image data: {e}")
 
@@ -217,14 +224,17 @@ async def vision_detect(payload: DetectRequest):
     )
 
     try:
-        # google.generativeai's GenerativeModel reads whatever key was last
-        # passed to genai.configure() - there's no per-call api_key param, so
-        # rotation here means reconfiguring the module-level client right
-        # before use rather than building a fresh client like the other
-        # endpoints do with genai_new.Client(api_key=...).
-        genai.configure(api_key=next_gemini_key())
-        model = genai.GenerativeModel('gemini-3.5-flash-lite')
-        response = model.generate_content([prompt_vision, img])
+        detect_client = genai_new.Client(api_key=next_gemini_key())
+        img_part = types.Part.from_bytes(data=image_data, mime_type="image/jpeg")
+        # Blocking network call - run off the event loop so one slow
+        # Gemini round-trip can't stall every other request being served
+        # (Navigator's Journey mode fires this + /api/localize on overlapping
+        # timers, so this endpoint gets hit concurrently in normal use).
+        response = await asyncio.to_thread(
+            detect_client.models.generate_content,
+            model='gemini-3.5-flash-lite',
+            contents=[prompt_vision, img_part],
+        )
         hazard_text = response.text.strip()
         print(f"[DEBUG Gemini Vision Output]: {hazard_text}")
     except Exception as e:
@@ -258,7 +268,8 @@ async def vision_score(payload: ScoreRequest):
 
     try:
         client3 = genai_new.Client(api_key=next_gemini_key())
-        response_score = client3.models.generate_content(
+        response_score = await asyncio.to_thread(
+            client3.models.generate_content,
             model='gemini-3.5-flash-lite',
             contents=prompt_score
         )
@@ -306,7 +317,8 @@ async def vision_find(payload: FindRequest):
     try:
         find_client = genai_new.Client(api_key=next_gemini_key())
         img_part = types.Part.from_bytes(data=image_data, mime_type="image/jpeg")
-        response = find_client.models.generate_content(
+        response = await asyncio.to_thread(
+            find_client.models.generate_content,
             model='gemini-3.5-flash-lite',
             contents=[prompt, img_part],
             config=types.GenerateContentConfig(response_mime_type="application/json"),
@@ -361,7 +373,8 @@ async def localize(payload: LocalizeRequest):
     try:
         embed_client = genai_new.Client(api_key=next_gemini_key())
         part = types.Part.from_bytes(data=image_data, mime_type="image/jpeg")
-        response = embed_client.models.embed_content(
+        response = await asyncio.to_thread(
+            embed_client.models.embed_content,
             model='gemini-embedding-2',
             contents=part,
             config=types.EmbedContentConfig(
