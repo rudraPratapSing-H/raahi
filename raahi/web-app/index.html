@@ -1,0 +1,151 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Raahi — Reflex Link</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head><body>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <b>Reflex Link</b>
+      <span id="devLabel">PS2-WEARABLE MONITOR</span>
+    </div>
+    <div class="row" style="gap:8px;">
+      <select class="lang-select" id="langSelect"></select>
+      <span class="pill off" id="statusPill"><span class="dot"></span><span id="statusText">Not connected</span></span>
+    </div>
+  </header>
+
+  <section id="unsupportedNote" class="note" hidden>
+    This browser can't do Web Bluetooth, so it can't reach the wearable directly.
+    Open this same page in <b>Chrome on Android</b> (this is the fastest path — no
+    app install). On iPhone, Safari blocks this entirely; a browser like
+    <b>Bluefy</b> can load this same page instead.
+  </section>
+
+  <section>
+    <button class="btn-primary" id="connectBtn">Connect to wearable</button>
+  </section>
+
+  <section>
+    <div class="row" style="margin-bottom:8px;">
+      <div class="section-title" style="margin:0;">Voice control</div>
+      <label class="row" style="gap:6px; font-size:12px; color:var(--text-dim);">
+        <input type="checkbox" id="voiceToggle" checked style="width:auto;">
+        listening
+      </label>
+    </div>
+    <div class="chips">
+      <span class="chip" id="listeningChip">mic off</span>
+      <span class="chip" id="muteChip" hidden>voice muted</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="row" style="margin-bottom:8px;">
+      <div class="section-title" style="margin:0;">Obstacle sensors</div>
+      <span class="chip" id="sampleTag" style="font-family:var(--sans);">example data</span>
+    </div>
+    <div class="zones">
+      <div class="zone z-unknown" id="zoneL">
+        <div class="stripe"></div>
+        <div class="label">LEFT</div>
+        <div class="val">— <span class="unit">cm</span></div>
+        <div class="state">no data</div>
+      </div>
+      <div class="zone z-unknown" id="zoneF">
+        <div class="stripe"></div>
+        <div class="label">FRONT</div>
+        <div class="val">— <span class="unit">cm</span></div>
+        <div class="state">no data</div>
+      </div>
+      <div class="zone z-unknown" id="zoneR">
+        <div class="stripe"></div>
+        <div class="label">RIGHT</div>
+        <div class="val">— <span class="unit">cm</span></div>
+        <div class="state">no data</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Device status</div>
+    <div class="grid2">
+      <div class="card"><div class="k">Floor sensor</div><div class="v" id="floorState">—</div></div>
+      <div class="card"><div class="k">Tilt</div><div class="v" id="tiltVal">— <small>deg</small></div></div>
+      <div class="card"><div class="k">Battery</div><div class="v" id="battVal">— <small>%</small></div></div>
+      <div class="card"><div class="k">Last frame</div><div class="v" id="freshVal">— <small>ago</small></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Flags</div>
+    <div class="chips" id="flagChips">
+      <span class="chip">waiting for data…</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Find a place</div>
+    <div class="finder-card">
+      <div class="target" id="finderTarget">Say "find canteen" or type below</div>
+      <div class="result" id="finderResult">—</div>
+      <div class="sub" id="finderSub"></div>
+      <div class="finder-input">
+        <input type="text" id="finderInputText" placeholder="e.g. canteen">
+        <button class="btn-outline" id="findBtn">Find</button>
+      </div>
+      <div class="actions">
+        <button class="btn-outline" id="guideBtn">Guide me</button>
+        <button class="btn-outline" id="cancelBtn">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="sos-banner" id="sosBanner">
+    <span id="sosText">SOS activated</span>
+    <button id="sosDismissBtn">Dismiss</button>
+  </section>
+
+  <section>
+    <div class="row">
+      <div class="section-title" style="margin:0;">Button events</div>
+      <span class="hz" id="frameHz">— Hz</span>
+    </div>
+    <div class="log" id="eventLog">
+      <div class="entry" style="color:var(--text-faint);"><i>example</i> · <b>Double press</b> · 10:41:02 AM</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="actions">
+      <button class="btn-outline" id="buzzBtn" disabled>Test buzz (all)</button>
+      <button class="btn-outline" id="recalBtn" disabled>Recalibrate floor</button>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <span class="toggle" id="rawToggle">show raw frame bytes</span>
+    </div>
+    <div class="raw" id="rawFrame">—</div>
+  </section>
+
+  <section class="note">
+    This page sends a heartbeat to the wearable roughly once a second while
+    connected — that's what tells the firmware a phone is present, so it stops
+    treating the link as lost. Distances update at up to <code>15 Hz</code>
+    (about every 65 ms); ~80 cm is the danger threshold, ~150 cm caution,
+    ~250 cm aware. Say "find &lt;place&gt;", "repeat", "mute", "where am I", or
+    "S O S" any time — the physical button on the wearable does the same five
+    things by press pattern if speech isn't available.
+  </section>
+</div>
+
+<section>
+  <div class="section-title">Camera Feed</div>
+  <video id="cameraVideo" playsinline muted style="width: 100%; border-radius: 8px; border: 1px solid var(--border);"></video>
+</section>
+<canvas id="cameraCanvas" style="display:none;"></canvas>
+
+<script type="module" src="js/app.js"></script>
+</body></html>
