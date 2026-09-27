@@ -1,0 +1,51 @@
+{
+  "hazard.danger": "Danger, {side} very close",
+  "hazard.caution": "Caution, obstacle {side}",
+  "hazard.aware": "Object {side}, keep clear",
+  "hazard.clear": "{side} clear now",
+  "hazard.floorDrop": "Warning, drop ahead, stop",
+
+  "side.left": "left",
+  "side.front": "ahead",
+  "side.right": "right",
+
+  "sos.activated": "S O S activated",
+
+  "loc.match": "You are at {name}",
+  "loc.noMatch": "Could not tell where you are",
+  "loc.arrived": "You have arrived",
+  "loc.needLocateFirst": "Not sure where you are yet. Say, where am I, first",
+
+  "voice.commandHint": "Try find, repeat, mute, where am I, or S O S",
+  "voice.muteOn": "Voice muted",
+  "voice.muteOff": "Voice unmuted",
+  "voice.recalibrateSent": "Recalibrating floor sensor",
+
+  "finder.needTargetFirst": "Say find, then a place, first",
+  "finder.notVisible": "{target} not visible yet, try turning around",
+  "finder.result": "{target} is {direction}{distanceSuffix}",
+  "finder.stillLooking": "Still looking for {target}",
+  "finder.arrived": "You should be right at {target} now",
+  "finder.cancelled": "Search cancelled",
+
+  "direction.left": "to your left",
+  "direction.slightly_left": "slightly to your left",
+  "direction.ahead": "straight ahead",
+  "direction.slightly_right": "slightly to your right",
+  "direction.right": "to your right",
+  "direction.behind": "behind you",
+  "direction.unknown": "not clear from here",
+
+  "distance.near": ", close by",
+  "distance.far": ", a bit far",
+
+  "camera.permissionDenied": "Camera permission denied",
+
+  "outdoor.guidance": "{name} is {distance} meters {direction}",
+  "outdoor.arrived": "You should be right at {name} now",
+  "outdoor.needLocationPermission": "Location permission is needed to guide you outdoors",
+
+  "sos.smsSent": "SOS message sent",
+  "sos.smsFailed": "Could not send SOS message",
+  "sos.noContact": "No SOS contact set. Add one in settings"
+}

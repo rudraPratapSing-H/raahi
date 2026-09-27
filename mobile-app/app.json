@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Raahi",
+    "slug": "raahi",
+    "scheme": "raahi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Raahi uses the camera to recognize where you are and to look for places you ask it to find.",
+        "NSMicrophoneUsageDescription": "Raahi listens for spoken commands like \"find canteen\" or \"repeat\".",
+        "NSSpeechRecognitionUsageDescription": "Raahi converts your spoken commands into text to control the app hands-free.",
+        "NSLocationWhenInUseUsageDescription": "Raahi uses your location to guide you outdoors and to share your position if you trigger SOS.",
+        "UIBackgroundModes": ["bluetooth-central"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b0f14",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.SEND_SMS"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Raahi uses the camera to recognize where you are and to look for places you ask it to find."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Raahi uses your location to guide you outdoors and to share your position if you trigger SOS."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Raahi listens for spoken commands like \"find canteen\" or \"repeat\".",
+          "speechRecognitionPermission": "Raahi converts your spoken commands into text to control the app hands-free.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "neverForLocation": true
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

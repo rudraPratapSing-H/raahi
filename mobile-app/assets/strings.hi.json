@@ -1,0 +1,51 @@
+{
+  "hazard.danger": "खतरा, {side} बहुत पास है",
+  "hazard.caution": "सावधान, {side} बाधा है",
+  "hazard.aware": "{side} वस्तु है, दूर रहें",
+  "hazard.clear": "{side} अब साफ़ है",
+  "hazard.floorDrop": "चेतावनी, आगे गड्ढा है, रुक जाइए",
+
+  "side.left": "बाईं ओर",
+  "side.front": "आगे",
+  "side.right": "दाईं ओर",
+
+  "sos.activated": "एस ओ एस सक्रिय",
+
+  "loc.match": "आप {name} पर हैं",
+  "loc.noMatch": "पता नहीं चल सका आप कहाँ हैं",
+  "loc.arrived": "आप पहुँच गए हैं",
+  "loc.needLocateFirst": "अभी पता नहीं आप कहाँ हैं। पहले कहें, मैं कहाँ हूँ",
+
+  "voice.commandHint": "कहें, ढूंढो, दोहराओ, मौन करो, मैं कहाँ हूँ, या एस ओ एस",
+  "voice.muteOn": "आवाज़ मौन की गई",
+  "voice.muteOff": "आवाज़ चालू की गई",
+  "voice.recalibrateSent": "फ़्लोर सेंसर पुनः कैलिब्रेट हो रहा है",
+
+  "finder.needTargetFirst": "पहले कहें, ढूंढो, फिर जगह का नाम",
+  "finder.notVisible": "{target} अभी नहीं दिख रहा, घूम कर देखिए",
+  "finder.result": "{target} {direction}{distanceSuffix} है",
+  "finder.stillLooking": "{target} को अभी भी ढूंढ रहे हैं",
+  "finder.arrived": "आप अब {target} के ठीक पास होने चाहिए",
+  "finder.cancelled": "खोज रद्द की गई",
+
+  "direction.left": "आपके बाईं ओर",
+  "direction.slightly_left": "थोड़ा बाईं ओर",
+  "direction.ahead": "सीधे आगे",
+  "direction.slightly_right": "थोड़ा दाईं ओर",
+  "direction.right": "आपके दाईं ओर",
+  "direction.behind": "आपके पीछे",
+  "direction.unknown": "यहाँ से स्पष्ट नहीं",
+
+  "distance.near": ", पास ही",
+  "distance.far": ", थोड़ा दूर",
+
+  "camera.permissionDenied": "कैमरा अनुमति अस्वीकृत",
+
+  "outdoor.guidance": "{name} {distance} मीटर {direction} है",
+  "outdoor.arrived": "आप अब {name} के ठीक पास होने चाहिए",
+  "outdoor.needLocationPermission": "बाहर मार्गदर्शन के लिए स्थान अनुमति चाहिए",
+
+  "sos.smsSent": "एस ओ एस संदेश भेजा गया",
+  "sos.smsFailed": "एस ओ एस संदेश नहीं भेजा जा सका",
+  "sos.noContact": "कोई एस ओ एस संपर्क सेट नहीं है। सेटिंग्स में जोड़ें"
+}
