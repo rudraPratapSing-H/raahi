@@ -4,6 +4,12 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     'anytime-saggy-debtor.ngrok-free.dev',
     // add any other ngrok domains here if they change
+    '10.17.242.124',
+    // ^ LAN IP for phone testing over `next dev` - this changes whenever the
+    // laptop reconnects to Wi-Fi/gets a new DHCP lease, so update it here
+    // (or check `ipconfig`) if phone access to HMR/dev assets stops working.
+    // The app itself still loads without this entry; only Fast Refresh
+    // (hot reload) is blocked for an origin that isn't listed.
   ],
   async rewrites() {
     return [

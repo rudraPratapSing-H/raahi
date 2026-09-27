@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pymongo import MongoClient
 from pydantic import BaseModel
 from typing import Optional
@@ -479,8 +480,23 @@ def get_path(start: str, end: str, blocked_edges: str = ""):
 # Static wearable/voice web app — mounted at /wearable (not "/") so it never
 # shadows any /api/* route above, and doesn't touch how the Next.js web-app/
 # (served separately by `next dev`/`next start`) reaches the root path.
-# StaticFiles(html=True) serves wearable-app/index.html for "/wearable".
+#
+# No redirect between "/wearable" and "/wearable/" is used here - both are
+# answered directly with the same file. Two independent frameworks both try
+# to "helpfully" redirect one form to the other (Starlette's redirect-slash
+# for the bare path builds an ABSOLUTE Location from the ASGI scope's
+# host/port, which leaks the backend's own 127.0.0.1:8000 through the Next.js
+# dev proxy; Next.js's own trailingSlash normalization redirects the
+# slash-form straight back to the no-slash form) - chaining them ping-pongs
+# forever instead of settling anywhere. Serving both directly sidesteps both.
+# index.html's own <base href="/wearable/"> tag is what makes its relative
+# asset links ("css/style.css") resolve correctly either way.
 # ─────────────────────────────────────────────
+@app.get("/wearable")
+@app.get("/wearable/")
+async def wearable_index():
+    return FileResponse("wearable-app/index.html")
+
 app.mount("/wearable", StaticFiles(directory="wearable-app", html=True), name="wearable")
 
 if __name__ == "__main__":
