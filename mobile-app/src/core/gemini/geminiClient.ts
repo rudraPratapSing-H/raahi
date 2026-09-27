@@ -1,8 +1,9 @@
 // Direct REST calls to Gemini, replacing api.py's Gemini-calling endpoints
 // now that there's no backend to proxy through. Mirrors exactly what api.py
 // already did server-side (same models, same prompts) - just called directly
-// from the device with the bundled key. See getGeminiApiKey() for where that
-// key lives (config, not hardcoded per-file).
+// from the device with the bundled key(s). See nextGeminiApiKey() below for
+// where those keys live (config, not hardcoded per-file) and how rotation
+// across multiple keys works.
 //
 // NOTE: field-name casing for a couple of REST fields (generationConfig's
 // response_mime_type, inline_data) was confirmed against Google's docs but
@@ -23,12 +24,35 @@ const VISION_MODEL = 'gemini-3.5-flash-lite';
  * see mobile-app/.env.example. This IS the "key ships inside the app"
  * tradeoff flagged in the project plan, not an accident: there's no backend
  * left to hold it server-side instead.
+ *
+ * Same demo-day rate-limit mitigation api.py used for /api/vision/find
+ * (GEMINI_VISION_KEYS / next_vision_key there), ported here and applied to
+ * every Gemini call this client makes (embeddings, hazard detect, vision
+ * find, severity score) - round-robins across every configured key so a
+ * free-tier per-key TPM/RPM quota is spread across all of them. Metro can
+ * only inline an EXPO_PUBLIC_ var when it's a static `process.env.X`
+ * reference, so these three must be listed explicitly - not built from a
+ * loop over a computed name.
+ *
+ * Extras are entirely optional: if only EXPO_PUBLIC_GEMINI_API_KEY is set,
+ * GEMINI_API_KEYS has length 1 and every call just keeps using that same
+ * key - the fallback isn't a special case, it falls out of the array-filter
+ * below by construction.
  */
-export function getGeminiApiKey(): string {
-  const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-  if (!key) {
+const GEMINI_API_KEYS: string[] = [
+  process.env.EXPO_PUBLIC_GEMINI_API_KEY,
+  process.env.EXPO_PUBLIC_GEMINI_API_KEY2,
+  process.env.EXPO_PUBLIC_GEMINI_API_KEY3,
+].filter((key): key is string => !!key);
+
+let keyCursor = 0;
+
+function nextGeminiApiKey(): string {
+  if (GEMINI_API_KEYS.length === 0) {
     throw new Error('Gemini API key not configured - set EXPO_PUBLIC_GEMINI_API_KEY in mobile-app/.env');
   }
+  const key = GEMINI_API_KEYS[keyCursor % GEMINI_API_KEYS.length];
+  keyCursor += 1;
   return key;
 }
 
@@ -47,7 +71,7 @@ async function postJSON(url: string, body: unknown): Promise<any> {
 
 /** Embeds a base64 JPEG for localization, matching api.py's /api/localize embedding step. */
 export async function embedImage(imageBase64: string): Promise<number[]> {
-  const url = `${API_BASE}/models/${EMBEDDING_MODEL}:embedContent?key=${getGeminiApiKey()}`;
+  const url = `${API_BASE}/models/${EMBEDDING_MODEL}:embedContent?key=${nextGeminiApiKey()}`;
   const body = {
     content: {
       parts: [{ inline_data: { mime_type: 'image/jpeg', data: imageBase64 } }],
@@ -68,7 +92,7 @@ function extractText(json: any): string {
 }
 
 async function generateContent(prompt: string, imageBase64: string, jsonMode: boolean): Promise<string> {
-  const url = `${API_BASE}/models/${VISION_MODEL}:generateContent?key=${getGeminiApiKey()}`;
+  const url = `${API_BASE}/models/${VISION_MODEL}:generateContent?key=${nextGeminiApiKey()}`;
   const body: any = {
     contents: [
       {
@@ -99,7 +123,7 @@ export async function detectHazard(imageBase64: string): Promise<{ hazard: strin
 
 /** Matches api.py's /api/vision/score prompt: 1-5 severity from hazard text (text-only, no image needed). */
 export async function scoreHazard(hazardText: string): Promise<{ severity: number }> {
-  const url = `${API_BASE}/models/${VISION_MODEL}:generateContent?key=${getGeminiApiKey()}`;
+  const url = `${API_BASE}/models/${VISION_MODEL}:generateContent?key=${nextGeminiApiKey()}`;
   const prompt =
     `Given the following hazard description for a blind pedestrian: '${hazardText}'\n` +
     'Score the severity from 1 to 5. 1 = safe/clear, 2 = distant object, 3 = moderate hazard within 5 steps, ' +
